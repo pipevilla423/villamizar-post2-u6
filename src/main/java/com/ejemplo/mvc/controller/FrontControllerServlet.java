@@ -2,6 +2,7 @@
 package com.ejemplo.mvc.controller;
 
 import com.ejemplo.mvc.controller.comando.*;
+import com.ejemplo.mvc.service.AutenticacionService;
 import com.ejemplo.mvc.service.TareaService;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
@@ -11,9 +12,12 @@ import jakarta.servlet.http.*;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 @WebServlet(name = "FrontControllerServlet", urlPatterns = {"/app"})
 public class FrontControllerServlet extends HttpServlet {
+
+    private static final Set<String> PUBLICOS = Set.of("login", "idioma");
 
     private final Map<String, Comando> comandos = new HashMap<>();
 
@@ -21,8 +25,8 @@ public class FrontControllerServlet extends HttpServlet {
     public void init() throws ServletException {
 
         TareaService tareaService = new TareaService();
+        AutenticacionService authService = new AutenticacionService();
 
-        // Configuracion global de la aplicacion
         ServletContext ctx = getServletContext();
 
         ctx.setAttribute(
@@ -37,16 +41,17 @@ public class FrontControllerServlet extends HttpServlet {
             )
         );
 
-        // Registro de comandos
+        // Comandos del CRUD
         comandos.put("listar", new ListarComando(tareaService));
-
         comandos.put("formulario", new FormularioComando(tareaService));
-
         comandos.put("guardar", new GuardarComando(tareaService));
-
         comandos.put("eliminar", new EliminarComando(tareaService));
-
         comandos.put("completar", new CompletarComando(tareaService));
+
+        // Comandos de sesion e idioma
+        comandos.put("login", new LoginComando(authService));
+        comandos.put("logout", new LogoutComando());
+        comandos.put("idioma", new IdiomaComando());
     }
 
     @Override
@@ -76,6 +81,22 @@ public class FrontControllerServlet extends HttpServlet {
             nombreComando = "listar";
         }
 
+        // Verificacion centralizada de sesion
+        if (!PUBLICOS.contains(nombreComando)) {
+
+            HttpSession session = req.getSession(false);
+
+            if (session == null ||
+                session.getAttribute("usuarioActual") == null) {
+
+                resp.sendRedirect(
+                    req.getContextPath() + "/app?comando=login"
+                );
+                return;
+            }
+        }
+
+        // Resolver el comando solicitado
         Comando comando = comandos.get(nombreComando);
 
         if (comando == null) {
@@ -83,6 +104,7 @@ public class FrontControllerServlet extends HttpServlet {
             return;
         }
 
+        // Ejecutar y enviar a la vista correspondiente
         String vista = comando.ejecutar(req, resp);
 
         if (vista != null) {
