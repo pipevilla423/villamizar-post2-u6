@@ -1,0 +1,9 @@
+<context-param>
+    <param-name>app.nombre</param-name>
+    <param-value>Gestor de Tareas MVC</param-value>
+</context-param>
+
+<context-param>
+    <param-name>app.maxLongitudTitulo</param-name>
+    <param-value>100</param-value>
+</context-param>
